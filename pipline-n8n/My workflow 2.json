@@ -1,0 +1,134 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "alert-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "eb6442ef-ba28-4db4-8e0a-617d1710035f",
+      "name": "Webhook",
+      "webhookId": "343faebe-25c4-4b1b-bd6d-fbdaff4301c2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rcon-asterisk:8088/ari/channels",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"endpoint\": \"PJSIP/1000\",\n  \"extension\": \"999\",\n  \"context\": \"from-internal\",\n  \"priority\": \"1\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "f1482a25-5163-40be-86ad-9e4fa984c039",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "yl4pctYIe5HVTasK",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $node[\"Set\"].json[\"message\"] }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        592,
+        0
+      ],
+      "id": "3fd201df-0bc1-4806-a7e1-d56e69521df8",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5b1916e2-1893-447c-b771-e00b55a15b8d",
+              "name": "message",
+              "value": "\"Chamada de teste enviada para o ramal 1000!\"",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "d76ca70d-8eda-4a73-acb1-8a2e46f1d0d8",
+      "name": "Set"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "c0981dd1-f8d9-4020-b0ac-7038b47d5efe",
+  "meta": {
+    "instanceId": "75960071dec49aa7c79d5a27a9e1f27c7e922ba88e5fad7ec928fc7da6cc700d"
+  },
+  "id": "evaE_U9zAmXkkH1t8--Io",
+  "tags": []
+}
