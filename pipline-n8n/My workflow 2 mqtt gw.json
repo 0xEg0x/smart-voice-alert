@@ -1,0 +1,271 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rcon-asterisk:8088/ari/channels",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"endpoint\": \"PJSIP/1000\",\n  \"extension\": \"999\",\n  \"context\": \"from-internal\",\n  \"priority\": \"1\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        992,
+        -16
+      ],
+      "id": "f1482a25-5163-40be-86ad-9e4fa984c039",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "yl4pctYIe5HVTasK",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ok\",\n  \"decisao\": \"{{ $json.decisao }}\",\n  \"resposta_ia\": \"{{ $json.resposta_ia }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1376,
+        -16
+      ],
+      "id": "3fd201df-0bc1-4806-a7e1-d56e69521df8",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5b1916e2-1893-447c-b771-e00b55a15b8d",
+              "name": "message",
+              "value": "\"Chamada de teste enviada para o ramal 1000!\"",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        -16
+      ],
+      "id": "d76ca70d-8eda-4a73-acb1-8a2e46f1d0d8",
+      "name": "Set"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rcon-ollama:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n\"model\": \"llama3.2:3b\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Dados do sensor recebidos: se caso vier um true sozinho significa que há fumaça {{ $json.object.fumaca }} {{ $json.object.local }}  .   Analise se isso indica situação crítica (ex: temperatura > 50°C, fumaca true, vazamento, movimento suspeito). Responda APENAS com 'SIM: razão curta' ou 'NÃO: razão curta'.\"\n    }\n  ],\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        320,
+        0
+      ],
+      "id": "4de9b301-a32f-46dc-8b96-dabbe4f58f09",
+      "name": "Consulta IA Ollama"
+    },
+    {
+      "parameters": {
+        "jsCode": "const resposta = items[0].json.message?.content || '';\nconst decisao = resposta.toLowerCase().startsWith('sim') ? 'sim' : 'nao';\n\nreturn [{\n  json: {\n    resposta_ia: resposta.trim(),\n    decisao: decisao,\n    sensor_data: items[0].json  // opcional: salva o JSON original do sensor\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        0
+      ],
+      "id": "0a4d9801-e872-4fbb-8100-359ecc4956dd",
+      "name": "Decide Sim/Não"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "15d4d6e2-80b1-4706-acea-7dfb1a5eb284",
+              "leftValue": "={{ $json.decisao }}",
+              "rightValue": "sim",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        752,
+        0
+      ],
+      "id": "dcc1ab34-b7d2-43bd-8399-42294606aaa3",
+      "name": "É Critico?"
+    },
+    {
+      "parameters": {
+        "topics": "sensors/#",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mqttTrigger",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        0
+      ],
+      "id": "e553fa5e-96a4-46e0-97b3-6c1744c91009",
+      "name": "MQTT Trigger",
+      "credentials": {
+        "mqtt": {
+          "id": "Vrz34QXaKPlb0Mv1",
+          "name": "MQTT account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b3d5ff46-335c-4601-86c3-3a7f1343640a",
+              "name": "object",
+              "value": "={{ $json.mensagem_objeto }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        96,
+        0
+      ],
+      "id": "2bdebea4-5bf5-4127-9349-dea119f0c664",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta IA Ollama": {
+      "main": [
+        [
+          {
+            "node": "Decide Sim/Não",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Sim/Não": {
+      "main": [
+        [
+          {
+            "node": "É Critico?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Critico?": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MQTT Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Consulta IA Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "125b6143-0de1-4a3c-86cf-f861e11b174c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "75960071dec49aa7c79d5a27a9e1f27c7e922ba88e5fad7ec928fc7da6cc700d"
+  },
+  "id": "evaE_U9zAmXkkH1t8--Io",
+  "tags": []
+}
