@@ -21,15 +21,23 @@ services:
       - rcon-net
     volumes:
       - n8n_data:/home/node/.n8n
+      - ./shared:/shared
   
   # Interface Gráfica para Linphone e SNGREP
   desktop:
     image: dorowu/ubuntu-desktop-lxde-vnc
     container_name: rcon-desktop
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - DISPLAY=:1
+      - PULSE_SERVER=unix:/run/pulse/native  # ativa pulseaudio
+      - WEBRTC_AUDIO=true                   # ativa áudio no noVNC
     ports:
       - "6080:80"
     networks:
       - rcon-net
+    volumes:
+      - ./pulse:/run/pulse
   
   # Servidor de Telefonia IP - VERSÃO ATUALIZADA
   asterisk:
@@ -44,6 +52,7 @@ services:
     volumes:
       - ./asterisk_conf:/etc/asterisk
       - ./sounds:/var/lib/asterisk/sounds
+      - ./shared:/shared
     command: /usr/sbin/asterisk -f -vvvddd
 
 ## I.A local
@@ -81,8 +90,7 @@ services:
     restart: unless-stopped
     networks:
       - rcon-net
-
-      
+ 
 networks:
   rcon-net:
     driver: bridge
