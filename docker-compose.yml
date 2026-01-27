@@ -46,9 +46,22 @@ services:
       - ./sounds:/var/lib/asterisk/sounds
     command: /usr/sbin/asterisk -f -vvvddd
 
+## I.A local
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rcon-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - rcon-net
+
+      
 networks:
   rcon-net:
     driver: bridge
 
 volumes:
   n8n_data:
+  ollama_data:

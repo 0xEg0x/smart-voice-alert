@@ -1,0 +1,295 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "alert-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "eb6442ef-ba28-4db4-8e0a-617d1710035f",
+      "name": "Webhook",
+      "webhookId": "343faebe-25c4-4b1b-bd6d-fbdaff4301c2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rcon-asterisk:8088/ari/channels",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"endpoint\": \"PJSIP/1000\",\n  \"extension\": \"999\",\n  \"context\": \"from-internal\",\n  \"priority\": \"1\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1056,
+        -16
+      ],
+      "id": "f1482a25-5163-40be-86ad-9e4fa984c039",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "yl4pctYIe5HVTasK",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ok\",\n  \"decisao\": \"{{ $json.decisao }}\",\n  \"resposta_ia\": \"{{ $json.resposta_ia }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1440,
+        -16
+      ],
+      "id": "3fd201df-0bc1-4806-a7e1-d56e69521df8",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5b1916e2-1893-447c-b771-e00b55a15b8d",
+              "name": "message",
+              "value": "\"Chamada de teste enviada para o ramal 1000!\"",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1264,
+        -16
+      ],
+      "id": "d76ca70d-8eda-4a73-acb1-8a2e46f1d0d8",
+      "name": "Set"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9b883579-3207-480b-841c-611ad52b8f20",
+              "name": "=temp",
+              "value": "={{ $json.query.temp }}",
+              "type": "number"
+            },
+            {
+              "id": "b1c2ba59-796a-421b-aeee-42820092a359",
+              "name": "local",
+              "value": "={{ $json.query.local }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "5b92afe0-6913-431a-98bc-f2ca21400efb",
+      "name": "Set1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rcon-ollama:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.2:3b\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Temperatura {{ $json.temp }}°C no {{ $json.local }} é crítico? Responda apenas 'sim' ou 'não' e razão curta.\"\n    }\n  ],\n  \"stream\": false  \n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "4de9b301-a32f-46dc-8b96-dabbe4f58f09",
+      "name": "Consulta IA Ollama"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega a resposta completa da IA (no /api/chat)\nconst resposta = items[0].json.message?.content || '';\n\n// Decide se contém 'sim' (case insensitive)\nconst decisao = resposta.toLowerCase().includes('sim') ? 'sim' : 'nao';\n\nreturn [{\n  json: {\n    resposta_ia: resposta.trim(),\n    decisao: decisao\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        0
+      ],
+      "id": "0a4d9801-e872-4fbb-8100-359ecc4956dd",
+      "name": "Decide Sim/Não"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "15d4d6e2-80b1-4706-acea-7dfb1a5eb284",
+              "leftValue": "={{ $json.decisao }}",
+              "rightValue": "sim",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        816,
+        0
+      ],
+      "id": "dcc1ab34-b7d2-43bd-8399-42294606aaa3",
+      "name": "É Critico?"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "user-agent": "curl/8.18.0",
+            "accept": "*/*"
+          },
+          "params": {},
+          "query": {
+            "temp": "10000",
+            "local": "servidor-1"
+          },
+          "body": {},
+          "webhookUrl": "http://localhost:5678/webhook-test/alert-test",
+          "executionMode": "test"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set1": {
+      "main": [
+        [
+          {
+            "node": "Consulta IA Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta IA Ollama": {
+      "main": [
+        [
+          {
+            "node": "Decide Sim/Não",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Sim/Não": {
+      "main": [
+        [
+          {
+            "node": "É Critico?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Critico?": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "410d5d49-7b27-4ee7-835d-5ec8e14314fb",
+  "meta": {
+    "instanceId": "75960071dec49aa7c79d5a27a9e1f27c7e922ba88e5fad7ec928fc7da6cc700d"
+  },
+  "id": "evaE_U9zAmXkkH1t8--Io",
+  "tags": []
+}
