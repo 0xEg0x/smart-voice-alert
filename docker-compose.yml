@@ -57,6 +57,31 @@ services:
     networks:
       - rcon-net
 
+  wireguard:
+    image: linuxserver/wireguard:latest
+    container_name: rcon-vpn
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Sao_Paulo
+      - SERVERURL=auto                     # ou seu IP público/dominio se for externo
+      - SERVERPORT=51820                   # porta UDP padrão do WireGuard
+      - PEERS=5                            # quantidade máxima de clientes (celular, PC, sensor...)
+      - PEERDNS=auto
+      - INTERNAL_SUBNET=10.13.13.0         # rede interna da VPN (escolha livre)
+    ports:
+      - "51820:51820/udp"                  # porta que o WireGuard escuta (exponha no host)
+    volumes:
+      - ./wireguard:/config                # salva configs e chaves
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+    networks:
+      - rcon-net
+
       
 networks:
   rcon-net:
