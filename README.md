@@ -1,84 +1,154 @@
-# smart-voice-alert
-
 Smart Voice Alert
 Um laboratório self-hosted de monitoramento inteligente que combina IoT, IA local, automação e telefonia VoIP para detectar situações críticas e alertar humanos por ligação de voz automática — tudo offline e privado.
 Objetivo principal
 Sensor detecta algo (MQTT) → IA local decide se é crítico (Ollama) → se sim, Asterisk faz ligação automática para o humano via SIP (Linphone) e fala o alerta (gTTS).
-Visão geral do fluxo
+Visão Geral do Fluxo
 
-Sensor (simulado ou real) publica JSON no HiveMQ via MQTT (ex: {"temp":68,"local":"rack-3"})
-n8n escuta topic sensors/#
-Extrai mensagem → envia para Ollama analisar
-IA responde "SIM: razão curta" ou "NÃO: razão curta"
-Se "SIM" → gera áudio TTS (Google gTTS) com a razão
-Salva MP3 em volume compartilhado
-Asterisk origina ligação para ramal 1000 (Linphone)
-Linphone toca → atende → ouve a voz falando o alerta
+Sensor (simulado ou real) publica JSON no HiveMQ via MQTT (ex: {"temp":68,"local":"rack-3"}).
+n8n captura o dado, envia para Ollama analisar.
+Ollama responde "SIM: razão curta" ou "NÃO: razão curta".
+Se "SIM", n8n gera áudio TTS e salva em pasta compartilhada.
+n8n usa ARI para Asterisk originar a chamada.
+Linphone toca → atende → ouve a voz falando o alerta.
 
-Tecnologias principais
+Tecnologias Principais
 
-MQTT Broker — HiveMQ CE
-Automação & IA — n8n + Ollama (llama3.2:3b)
-Telefonia VoIP — Asterisk (PJSIP) + Linphone (softphone)
-Interface gráfica & debug — Ubuntu LXDE + VNC + SNGREP
-TTS — Google TTS (gTTS via HTTP)
-VPN (opcional) — WireGuard (para sensores remotos)
-Containerização — Docker Compose
+MQTT Broker: HiveMQ CE
+Automação & IA: n8n + Ollama (modelo: llama3.2:3b)
+VoIP: Asterisk (PJSIP) + Linphone (softphone)
+TTS: gTTS (Google TTS)
+Interface: Ubuntu LXDE + VNC + SNGREP
+VPN (Opcional): WireGuard
+Containerização: Docker Compose
 
-Estrutura do repositório
+Estrutura do Repositório
 textsmart-voice-alert/
 ├── docker-compose.yml          # Todos os containers
 ├── asterisk_conf/              # Configs Asterisk (pjsip.conf, extensions.conf, etc.)
 ├── shared/                     # Volume compartilhado (áudios TTS)
-├── sounds/                     # Sons Asterisk (tt-monkeys, etc.)
+├── sounds/en/                  # Sons Asterisk (tt-monkeys, etc.)
+├── wireguard/                  # Configs WireGuard (opcional)
 └── README.md
-Como rodar (quick start)
+Requisitos
 
-Clone o repositórioBashgit clone https://github.com/SeuUsuario/smart-voice-alert.git
+Docker e Docker Compose instalados (v2+)
+Máquina com pelo menos 8 GB RAM (para Ollama 3B)
+Conexão internet para pull inicial de imagens
+Celular/PC para testar VPN (opcional)
+
+Tutorial Passo a Passo de Execução
+Siga esses passos para clonar, configurar e rodar o projeto 100%.
+Passo 1: Clone o Repositório
+Abra o terminal e clone o repositório:
+Bashgit clone https://github.com/0xEg0x/smart-voice-alert.git
 cd smart-voice-alert
-Inicie tudoBashdocker compose up -d
-Acesse as interfaces
-VNC + Linphone: http://localhost:6080 (senha padrão ou vazia)
-n8n: http://localhost:5678
-HiveMQ dashboard: http://localhost:8080 (opcional)
-Asterisk CLI: docker exec -it rcon-asterisk asterisk -rvvv
+Passo 2: Verifique o docker-compose.yml
+Certifique-se que o arquivo tem todos os serviços (HiveMQ, n8n, Ollama, Asterisk, desktop). Se quiser VPN, adicione o bloco WireGuard.
+Exemplo parcial:
+YAMLservices:
+  hivemq:
+    image: hivemq/hivemq-ce:latest
+    # ...  
+  n8n:
+    image: n8nio/n8n:latest
+    # ...
+  ollama:
+    image: ollama/ollama:latest
+    # ...
+  asterisk:
+    image: andrius/asterisk:latest
+    # ...
+  desktop:
+    image: dorowu/ubuntu-desktop-lxde-vnc
+    # ...
+  # WireGuard (opcional)
+  wireguard:
+    image: linuxserver/wireguard:latest
+    # ...
+volumes:
+  n8n_data:
+  ollama_data:
+  shared:
+networks:
+  rcon-net:
+    driver: bridge
+Passo 3: Crie Pastas Necessárias
+Crie as pastas para volumes compartilhados e configs:
+Bashmkdir -p asterisk_conf shared sounds/en wireguard
 
-Teste rápidoBashdocker exec -it rcon-desktop mosquitto_pub -h rcon-hivemq -t sensors/temp -m '{"temp":68,"local":"rack-3"}'→ Verifique se Linphone toca e fala o alerta.
+Copie configs de Asterisk (pjsip.conf, extensions.conf, etc.) para asterisk_conf/ se não estiverem lá (use os do repo).
+Baixe sons para sounds/en/ (ex: tt-monkeys.ulaw do Asterisk downloads).
 
-Configurações importantes
+Passo 4: Inicie os Containers
+Bashdocker compose up -d
 
-Asterisk
-Ramal: 1000 (Linphone)
-Context de alerta: [ai-alert] em extensions.conf
-Playback do arquivo: /shared/alert.mp3
+Aguarde 5-10 min (baixa imagens e modelos Ollama).
+Verifique status:textdocker psDeve mostrar todos os containers Up.
 
-n8n Workflow
-Trigger: MQTT subscribe sensors/#
-IA: Ollama llama3.2:3b
-TTS: gTTS (Google) via HTTP
-Originate: ARI para PJSIP/1000 @ ai-alert
+Passo 5: Configure Ollama (IA Local)
+Entre no container e baixe o modelo:
+Bashdocker exec -it rcon-ollama bash
+ollama pull llama3.2:3b
+exit
+Teste:
+Bashcurl http://localhost:11434/api/generate -d '{
+  "model": "llama3.2:3b",
+  "prompt": "Teste rápido."
+}'
+Passo 6: Configure n8n (Automação)
+Acesse http://localhost:5678 e crie o workflow principal:
 
-Ollama
-Modelo recomendado: llama3.2:3b (leve e bom para decisões simples)
+Trigger: MQTT Subscribe (sensors/#)
+Function: Extrai mensagem
+HTTP Request: Ollama /api/chat
+Function: Parse decisão
+IF: Se "sim"
+HTTP Request: gTTS TTS
+Write Binary File: /shared/alert.mp3
+HTTP Request: ARI originate para alert@ai-alert
 
-Testes recomendados
+Salve e ative.
 
-Temperatura alta (crítico)Bashmosquitto_pub -h rcon-hivemq -t sensors/temp -m '{"temp":68,"local":"rack-3"}'
-Temperatura normal (não crítico)Bashmosquitto_pub -h rcon-hivemq -t sensors/temp -m '{"temp":28,"local":"sala"}'
-Simulação de fumaçaBashmosquitto_pub -h rcon-hivemq -t sensors/fumaca -m '{"fumaca":true,"local":"cozinha"}'
+Passo 7: Configure Asterisk (VoIP)
 
-Roadmap / Melhorias futuras
+Recarregue configs:textdocker exec -it rcon-asterisk asterisk -rx "dialplan reload"
+Teste chamada básica:
+No Linphone (via VNC: http://localhost:6080), ligue para 999 → ouça tt-monkeys.
 
-TTS offline (Piper ou Coqui)
-Confirmação interativa (DTMF: pressione 1 para confirmar)
-Dashboard de alertas (MQTT → Grafana ou app no celular)
-Sensores reais (ESP32 com MQTT-SN)
-Autenticação HiveMQ + VPN obrigatória
-Gravação das ligações de alerta
-Notificação fallback (Telegram/SMS se ligação falhar)
+Passo 8: Configure VPN (Opcional, para sensores remotos)
 
-Contribuições
-Sinta-se à vontade para abrir issues, pull requests ou forks. Qualquer melhoria em prompt da IA, voz TTS, segurança ou novos sensores é bem-vinda!
+Inicie WireGuard.
+Pegue peer.conf de ./wireguard/peer1/peer1.conf.
+Importe no app WireGuard do celular/PC.
+Conecte → teste MQTT do remoto.
+
+Passo 9: Execute e Teste
+
+Simule sensor:textdocker exec -it rcon-desktop mosquitto_pub -h rcon-hivemq -t sensors/temp -m '{"temp":68,"local":"rack-3"}'
+Linphone toca → atende → ouve voz com alerta.
+
+Temp normal (não toca):textdocker exec -it rcon-desktop mosquitto_pub -h rcon-hivemq -t sensors/temp -m '{"temp":28,"local":"sala"}'
+
+Passo 10: Troubleshooting
+
+No áudio: Verifique PulseAudio (instale pulseaudio-utils no desktop).
+Erro em n8n: Veja Executions.
+Asterisk logs: docker logs rcon-asterisk.
+VPN: Verifique logs WireGuard.
+
+Use Cases
+
+Monitoramento servidores: Temp alta → alerta voz.
+Casa inteligente: Fumaça → ligação família.
+Saúde: Movimento suspeito → chamada cuidador.
+
+Roadmap
+
+TTS offline
+DTMF confirmação
+Dashboard alertas
+Sensores reais (ESP32)
+
 Licença
 MIT License
 Copyright (c) 2026 Lucas
